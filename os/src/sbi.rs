@@ -4,6 +4,7 @@ use core::arch::asm;
 
 const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
+#[allow(dead_code)]
 const SBI_SHUTDOWN: usize = 8;
 
 /// general sbi call
@@ -33,8 +34,11 @@ pub fn console_putchar(c: usize) {
     sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);
 }
 
+#[path = "boards/qemu.rs"]
+mod boards;
+use boards::QEMUExit;
 /// use sbi call to shutdown the kernel
 pub fn shutdown() -> ! {
-    sbi_call(SBI_SHUTDOWN, 0, 0, 0);
-    panic!("It should shutdown!");
+    boards::QEMU_EXIT_HANDLE.exit_success();
+    // panic!("It should shutdown!");
 }
