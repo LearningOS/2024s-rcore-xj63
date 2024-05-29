@@ -14,9 +14,11 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::{syscall::TASK_START_TIME, timer::get_time_ms};
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
@@ -72,6 +74,13 @@ lazy_static! {
 }
 
 impl TaskManager {
+    /// 获取当前执行任务的id
+    pub fn get_current_task_id(&self) -> usize {
+        self.inner.exclusive_access().current_task
+    }
+}
+
+impl TaskManager {
     /// Run the first task in task list.
     ///
     /// Generally, the first task in task list is an idle task (we call it zero process later).
@@ -82,6 +91,13 @@ impl TaskManager {
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
         drop(inner);
+
+        {
+            // 设置第一个任务的开始时间
+            let id = 0;
+            TASK_START_TIME.set_start_time_if_not_set(id, get_time_ms());
+        }
+
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
         unsafe {
@@ -126,6 +142,11 @@ impl TaskManager {
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
+
+            {
+                TASK_START_TIME.set_start_time_if_not_set(next, get_time_ms());
+            }
+
             // before this, we should drop local variables that must be dropped manually
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);

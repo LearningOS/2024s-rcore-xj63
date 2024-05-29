@@ -1,3 +1,3 @@
 #!/bin/bash
 
-make run LOG=TRACE
+make run LOG=INFO
